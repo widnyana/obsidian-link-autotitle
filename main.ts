@@ -25,6 +25,8 @@ export default class URLEnhancerPlugin extends Plugin {
   private debounceTimeout: NodeJS.Timeout | null = null;
   private readonly DEBOUNCE_DELAY = 300; // ms
   private retryQueue: Map<string, RetryQueueItem> = new Map();
+  private userAgentString =
+    "TeaCupExplorer/2.0 (FueledByChamomile; JustHereForTheTitle)";
 
   async onload() {
     console.log("Loading Link Autotitle plugin");
@@ -57,8 +59,8 @@ export default class URLEnhancerPlugin extends Plugin {
     const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
     const excludeRanges: { start: number; end: number }[] = [];
 
-    let markdownMatch: RegExpExecArray | null;
-    while ((markdownMatch = markdownLinkRegex.exec(text)) !== null) {
+    const markdownMatch: RegExpExecArray | null = markdownLinkRegex.exec(text);
+    while (markdownMatch !== null) {
       excludeRanges.push({
         start: markdownMatch.index,
         end: markdownMatch.index + markdownMatch[0].length,
@@ -79,7 +81,7 @@ export default class URLEnhancerPlugin extends Plugin {
 
       // Check if the match falls within any of the exclude ranges
       const isExcluded = excludeRanges.some(
-        (range) => urlIndex >= range.start && urlIndex < range.end
+        (range) => urlIndex >= range.start && urlIndex < range.end,
       );
 
       if (!isExcluded) {
@@ -257,13 +259,15 @@ export default class URLEnhancerPlugin extends Plugin {
     retries = 3,
     delay = 1000,
   ): Promise<string> {
-
     try {
       // Try oEmbed first for any website that supports it
-      const oEmbedResponse = await fetch(`https://noembed.com/embed?url=${url}`);
+      const oEmbedResponse = await fetch(
+        `https://noembed.com/embed?url=${url}`,
+      );
       if (oEmbedResponse.ok) {
         const data = await oEmbedResponse.json();
-        if (data.title && data.provider_name) return `${data.provider_name} - ${data.title}`;
+        if (data.title && data.provider_name)
+          return `${data.provider_name} - ${data.title}`;
       }
     } catch (e) {
       console.warn("oEmbed fetch failed", e);
@@ -273,7 +277,9 @@ export default class URLEnhancerPlugin extends Plugin {
       try {
         try {
           const response = await fetch(url, {
-            headers: { "User-Agent": "Obsidian-URLEnhancer" },
+            headers: {
+              "User-Agent": this.userAgentString,
+            },
           });
 
           if (response.ok) {
@@ -288,7 +294,9 @@ export default class URLEnhancerPlugin extends Plugin {
         try {
           const response = await fetch(url, {
             mode: "no-cors",
-            headers: { "User-Agent": "Obsidian-URLEnhancer" },
+            headers: {
+              "User-Agent": this.userAgentString,
+            },
           });
 
           if (response.type === "opaque") {
@@ -305,7 +313,7 @@ export default class URLEnhancerPlugin extends Plugin {
           `Retrying fetch for ${url}... (${retries - attempt} retries left)`,
         );
         await new Promise((resolve) =>
-          setTimeout(resolve, delay * Math.pow(2, attempt)),
+          setTimeout(resolve, delay * 2 ** attempt),
         );
       }
     }
@@ -347,7 +355,7 @@ export default class URLEnhancerPlugin extends Plugin {
       this.retryQueue.set(key, {
         task,
         retries: (existing?.retries ?? 0) + 1,
-        nextRetry: Date.now() + Math.pow(2, existing?.retries ?? 0) * 1000,
+        nextRetry: Date.now() + 2 ** (existing?.retries ?? 0) * 1000,
       });
     }
   }
