@@ -1,0 +1,13 @@
+{
+  "id": "link-autotitle",
+  "name": "Link Autotitle",
+  "version": "1.0.0",
+  "minAppVersion": "1.7.0",
+  "description": "Automatically converts URLs to markdown links with page titles",
+  "author": "widnyana",
+  "authorUrl": "https://widnyana.web.id",
+  "fundingUrl": {
+    "GitHub Sponsor": "https://github.com/sponsors/widnyana"
+  },
+  "isDesktopOnly": true
+}
