@@ -67,6 +67,7 @@ export default class URLEnhancerPlugin extends Plugin {
     // Find all matches with their positions
     let match: RegExpExecArray | null;
 
+    // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
     while ((match = urlRegex.exec(text)) !== null) {
       matches.push({
         url: match[0].trim(),
@@ -240,6 +241,20 @@ export default class URLEnhancerPlugin extends Plugin {
     }
   }
 
+
+  private async fetcher(url: string): Promise<Response> {
+
+    console.log('trying to fetch url: ', url);
+
+    return await fetch(url, {
+      mode: "no-cors",
+      redirect: "follow",
+      headers: {
+        "User-Agent": this.userAgentString,
+      },
+    });
+  }
+
   private async fetchPageTitleWithRetry(
     url: string,
     retries = 3,
@@ -247,36 +262,22 @@ export default class URLEnhancerPlugin extends Plugin {
   ): Promise<string> {
     try {
       // Try oEmbed first for any website that supports it
-      const oEmbedResponse = await fetch(
+      const oEmbedResponse = await this.fetcher(
         `https://noembed.com/embed?url=${url}`,
       );
+
       if (oEmbedResponse.ok) {
         const data = await oEmbedResponse.json();
         if (data.title && data.provider_name)
           return `${data.provider_name} - ${data.title}`;
       }
+
     } catch (e) {
-      console.warn("oEmbed fetch failed", e);
+      console.warn("oEmbed fetch failed. trying next method", e);
     }
 
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        try {
-          const response = await fetch(url, {
-            headers: {
-              "User-Agent": this.userAgentString,
-            },
-          });
-
-          if (response.ok) {
-            const html = await response.text();
-            const titleMatch = html.match(/<title>(.*?)<\/title>/i);
-            if (titleMatch) return titleMatch[1].trim();
-          }
-        } catch (e) {
-          console.warn("Direct fetch failed, trying no-cors mode");
-        }
-
         try {
           const response = await fetch(url, {
             mode: "no-cors",
@@ -288,11 +289,18 @@ export default class URLEnhancerPlugin extends Plugin {
           if (response.type === "opaque") {
             return this.getTitleFromURL(url);
           }
+
+          if (response.ok) {
+            const html = await response.text();
+            const titleMatch = html.match(/<title>(.*?)<\/title>/i);
+            if (titleMatch) return titleMatch[1].trim();
+          }
         } catch (e) {
-          console.warn("No-cors fetch failed");
+          console.warn("fetch failed", e);
         }
 
         return this.getTitleFromURL(url);
+
       } catch (error) {
         if (attempt === retries) throw error;
         console.warn(
@@ -303,10 +311,14 @@ export default class URLEnhancerPlugin extends Plugin {
         );
       }
     }
+
+    // all mechanism failed. return just the url
     return url;
   }
 
   private getTitleFromURL(url: string): string {
+    console.info("incoming string: ", url);
+
     try {
       const urlObj = new URL(url);
 
@@ -322,7 +334,7 @@ export default class URLEnhancerPlugin extends Plugin {
         .replace(/[_-]/g, " ")
         .split(" ")
         .map(
-          (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+          (word) => word.trim(),
         )
         .join(" ")
         .trim();
