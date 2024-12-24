@@ -21,16 +21,15 @@ interface RetryQueueItem {
 }
 
 export default class URLEnhancerPlugin extends Plugin {
-  private urlCache: Map<string, string> = new Map();
-  private readonly MAX_CACHE_SIZE = 1000;
-  private processingUrls: Set<string> = new Set();
-  private processingQueue: Array<() => Promise<void>> = [];
-  private isProcessing = false;
   private debounceTimeout: NodeJS.Timeout | null = null;
+  private isProcessing = false;
+  private processingQueue: Array<() => Promise<void>> = [];
+  private processingUrls: Set<string> = new Set();
   private readonly DEBOUNCE_DELAY = 500; // ms
+  private readonly MAX_CACHE_SIZE = 1000;
   private retryQueue: Map<string, RetryQueueItem> = new Map();
-  private userAgentString =
-    "TeaCupExplorer/2.0 (FueledByChamomile; JustHereForTheTitle)";
+  private urlCache: Map<string, string> = new Map();
+  private userAgentString = "TeaCupExplorer/2.0 (FueledByChamomile; JustHereForTheTitle)";
 
   async onload() {
     console.log("🔗 Loading Link Autotitle plugin");
