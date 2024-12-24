@@ -3,6 +3,10 @@
  */
 import { type Editor, MarkdownView, Plugin } from "obsidian";
 
+interface URLMatch {
+  url: string;
+  index: number;
+}
 interface ProcessingTask {
   url: string;
   lineNumber: number;
@@ -23,13 +27,13 @@ export default class URLEnhancerPlugin extends Plugin {
   private processingQueue: Array<() => Promise<void>> = [];
   private isProcessing = false;
   private debounceTimeout: NodeJS.Timeout | null = null;
-  private readonly DEBOUNCE_DELAY = 300; // ms
+  private readonly DEBOUNCE_DELAY = 500; // ms
   private retryQueue: Map<string, RetryQueueItem> = new Map();
   private userAgentString =
     "TeaCupExplorer/2.0 (FueledByChamomile; JustHereForTheTitle)";
 
   async onload() {
-    console.log("Loading Link Autotitle plugin");
+    console.log("🔗 Loading Link Autotitle plugin");
 
     this.registerEvent(
       this.app.workspace.on("editor-change", this.handleChange.bind(this)),
@@ -43,7 +47,7 @@ export default class URLEnhancerPlugin extends Plugin {
   }
 
   onunload() {
-    console.log("Unloading Link Autotitle plugin");
+    console.log("🔗 Unloading Link Autotitle plugin");
     if (this.debounceTimeout) {
       clearTimeout(this.debounceTimeout);
     }
@@ -55,44 +59,22 @@ export default class URLEnhancerPlugin extends Plugin {
   }
 
   private findURLsInText(text: string): Array<{ url: string; index: number }> {
-    // First, find all markdown links to exclude them
-    const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-    const excludeRanges: { start: number; end: number }[] = [];
+    const urlRegex = /(?<!\]\()https?:\/\/[^\s)]+/g;
 
-    const markdownMatch: RegExpExecArray | null = markdownLinkRegex.exec(text);
-    while (markdownMatch !== null) {
-      excludeRanges.push({
-        start: markdownMatch.index,
-        end: markdownMatch.index + markdownMatch[0].length,
+    // Store found URLs with their positions
+    const matches: URLMatch[] = [];
+
+    // Find all matches with their positions
+    let match: RegExpExecArray | null;
+
+    while ((match = urlRegex.exec(text)) !== null) {
+      matches.push({
+        url: match[0].trim(),
+        index: match.index,
       });
     }
 
-    // Find URLs that are not in markdown links
-    const urlRegex =
-      /(https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*[-a-zA-Z0-9@:%_\+~#?&//=])?)/g;
-    const results: Array<{ url: string; index: number }> = [];
-
-    let match: RegExpExecArray | null;
-    while (true) {
-      match = urlRegex.exec(text);
-      if (match === null) break;
-
-      const urlIndex = match.index;
-
-      // Check if the match falls within any of the exclude ranges
-      const isExcluded = excludeRanges.some(
-        (range) => urlIndex >= range.start && urlIndex < range.end,
-      );
-
-      if (!isExcluded) {
-        results.push({
-          url: match[0], // The matched URL
-          index: urlIndex, // The index where the URL starts
-        });
-      }
-    }
-
-    return results;
+    return matches;
   }
 
   async handleChange(editor: Editor) {
@@ -103,6 +85,10 @@ export default class URLEnhancerPlugin extends Plugin {
     this.debounceTimeout = setTimeout(() => {
       const cursor = editor.getCursor();
       const currentLine = editor.getLine(cursor.line);
+
+      if (currentLine.length <= 10) {
+        return;
+      }
 
       const urlMatches = this.findURLsInText(currentLine);
       if (urlMatches.length === 0) return;
