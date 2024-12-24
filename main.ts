@@ -32,7 +32,7 @@ export default class URLEnhancerPlugin extends Plugin {
   private userAgentString = "TeaCupExplorer/2.0 (FueledByChamomile; JustHereForTheTitle)";
 
   async onload() {
-    console.log("🔗 Loading Link Autotitle plugin");
+    console.info("🔗 Loading Link Autotitle plugin");
 
     this.registerEvent(
       this.app.workspace.on("editor-change", this.handleChange.bind(this)),
@@ -46,7 +46,7 @@ export default class URLEnhancerPlugin extends Plugin {
   }
 
   onunload() {
-    console.log("🔗 Unloading Link Autotitle plugin");
+    console.info("🔗 Unloading Link Autotitle plugin");
     if (this.debounceTimeout) {
       clearTimeout(this.debounceTimeout);
     }
@@ -316,7 +316,7 @@ export default class URLEnhancerPlugin extends Plugin {
   }
 
   private getTitleFromURL(url: string): string {
-    console.info("incoming string: ", url);
+    console.log("incoming string: ", url);
 
     try {
       const urlObj = new URL(url);
@@ -338,7 +338,8 @@ export default class URLEnhancerPlugin extends Plugin {
         .join(" ")
         .trim();
 
-      return pathTitle || urlObj.hostname;
+      return pathTitle ? `${urlObj.hostname}: ${pathTitle}` : urlObj.hostname;
+
     } catch (e) {
       return url;
     }
